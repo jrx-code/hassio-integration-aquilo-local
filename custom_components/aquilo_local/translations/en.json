@@ -1,0 +1,37 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Aquilo Local",
+        "description": "IP address or hostname of the gateway (port 80, path /state). Nothing is sent outside your network.",
+        "data": {
+          "host": "Gateway host / IP"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Could not reach the gateway.",
+      "no_sensors_found": "The gateway answered but reported no sensors."
+    },
+    "abort": {
+      "already_configured": "This gateway is already configured."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "stale_hours": "Stale-data alert after (hours)",
+          "overflow_pct": "Overflow-risk threshold (%)"
+        }
+      },
+      "sensors": {
+        "title": "Exclude sensors",
+        "description": "Checked sensors (tanks) will be removed from Home Assistant and will not be recreated until unchecked.",
+        "data": {
+          "excluded_tanks": "Excluded sensors"
+        }
+      }
+    }
+  }
+}

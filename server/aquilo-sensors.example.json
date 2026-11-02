@@ -1,0 +1,15 @@
+{
+  "_comment": [
+    "Tank geometry for aquilo_state_local.py. One entry per radar sensor, keyed by the",
+    "sensor id the gateway reports in its raw readings (see the README, step 1).",
+    "depth_cm: tank depth. Take tank_depth_manual_cm when the vendor panel shows the",
+    "depth mode as manual; for auto take the depth it derived (README, step 1).",
+    "full_cm: the 'full' offset, the distance from the sensor at which the tank counts",
+    "as full (the panel's max level setting).",
+    "Delete this _comment key if your editor complains; the service ignores it."
+  ],
+  "sensors": {
+    "aaaa01": {"name": "Rainwater", "depth_cm": 220, "full_cm": 25},
+    "bbbb02": {"name": "Sewage", "depth_cm": 190, "full_cm": 20}
+  }
+}

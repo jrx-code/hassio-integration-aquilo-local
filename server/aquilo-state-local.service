@@ -1,0 +1,23 @@
+[Unit]
+Description=Aquilo state computed locally, so no part of the data path leaves the house
+After=network-online.target mosquitto.service emqx.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+EnvironmentFile=/etc/aquilo-state-local.env
+ExecStart=/usr/bin/python3 /usr/local/bin/aquilo_state_local.py
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+StateDirectory=aquilo-state-local
+# The service needs only the broker and its own state directory.
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+DynamicUser=true
+
+[Install]
+WantedBy=multi-user.target

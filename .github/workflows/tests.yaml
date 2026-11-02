@@ -1,0 +1,49 @@
+name: Tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# GitHub only, like hacs.yaml and hassfest.yaml: the Forgejo runner also picks
+# up .github/workflows and actions/setup-python does not work there.
+
+jobs:
+  lint:
+    name: Ruff
+    if: github.server_url == 'https://github.com'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install ruff
+      - run: ruff check custom_components tests server
+
+  test:
+    name: Pytest
+    if: github.server_url == 'https://github.com'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install pytest pytest-homeassistant-custom-component
+      - run: pytest -q --tb=short
+
+  server:
+    name: State service
+    if: github.server_url == 'https://github.com'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - run: pip install pytest "paho-mqtt>=2"
+      - run: pytest -q --tb=short server

@@ -1,0 +1,20 @@
+name: Validate with HACS
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "0 0 * * *"
+
+# GitHub only: the Forgejo runner also picks up .github/workflows when a repo has
+# no .forgejo/workflows, and the hassfest/HACS actions do not run there.
+
+jobs:
+  validate:
+    if: github.server_url == 'https://github.com'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hacs/action@main
+        with:
+          category: integration

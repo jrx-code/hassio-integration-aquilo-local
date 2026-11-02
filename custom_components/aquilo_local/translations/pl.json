@@ -1,0 +1,37 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Aquilo Local",
+        "description": "Adres IP lub nazwa bramki (port 80, ścieżka /state). Nic nie opuszcza Twojej sieci.",
+        "data": {
+          "host": "Host / IP bramki"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Nie udało się połączyć z tym źródłem.",
+      "no_sensors_found": "Źródło odpowiedziało, ale nie zgłasza żadnych czujników."
+    },
+    "abort": {
+      "already_configured": "Ta bramka lub to konto jest już skonfigurowane."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "data": {
+          "stale_hours": "Alarm nieaktualnych danych po (godzinach)",
+          "overflow_pct": "Próg ryzyka przepełnienia (%)"
+        }
+      },
+      "sensors": {
+        "title": "Wyklucz czujniki",
+        "description": "Zaznaczone czujniki (zbiorniki) zostaną usunięte z Home Assistant i nie będą już tworzone na nowo, dopóki nie zostaną odznaczone.",
+        "data": {
+          "excluded_tanks": "Wykluczone czujniki"
+        }
+      }
+    }
+  }
+}
