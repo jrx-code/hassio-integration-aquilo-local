@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.3 (2026-11-02)
+
+- The raw measurement behind a reading now travels as attributes of **Ostatni
+  odczyt**, whose state is the time of that reading. The separate **Surowy
+  odczyt** entity is gone: its state was the gateway's raw string, which does
+  not fit a Home Assistant state (255 characters) and was unreadable in the UI.
+  Nothing is truncated any more, and the rejected-reading attribute moved along
+  with the rest. The old entity is removed from the registry on upgrade.
+
 ## 0.4.2 (2026-11-02)
 
 - A reading the state service turned away (an echo too weak or too far to be a

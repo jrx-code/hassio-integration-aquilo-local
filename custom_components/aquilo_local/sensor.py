@@ -41,6 +41,10 @@ from .entity import AquiloEntity
 @dataclass(frozen=True, kw_only=True)
 class AquiloSensorDescription(SensorEntityDescription):
     value_fn: Callable[[dict[str, Any]], Any] = lambda d: None
+    # Extra attributes this sensor carries, when its state is not the whole story.
+    attrs_fn: Callable[[dict[str, Any]], dict[str, Any]] | None = None
+    # Entities that stay readable while the tank's own readings have gone.
+    always_available: bool = False
 
 
 def _parse_ts(value: Any) -> datetime | None:
@@ -48,6 +52,25 @@ def _parse_ts(value: Any) -> datetime | None:
         return None
     parsed = dt_util.parse_datetime(value)
     return dt_util.as_utc(parsed) if parsed else None
+
+
+def _reading_attrs(tank_data: dict[str, Any]) -> dict[str, Any]:
+    """Everything the gateway sent with the last reading.
+
+    The raw string names the hardware revision, the sensor and the reading in
+    one line; it is far too long for a state, so it travels here with the rest
+    of the raw block and with a reading the plausibility gate turned away. That
+    way a level that looks wrong can be traced to its source without opening a
+    broker or a log.
+    """
+    attrs: dict[str, Any] = {}
+    raw = tank_data.get(ATTR_RAW)
+    if isinstance(raw, dict):
+        attrs.update(raw)
+    rejected = tank_data.get(ATTR_REJECTED)
+    if isinstance(rejected, dict):
+        attrs[ATTR_REJECTED] = rejected
+    return attrs
 
 
 SENSOR_DESCRIPTIONS: tuple[AquiloSensorDescription, ...] = (
@@ -99,6 +122,10 @@ SENSOR_DESCRIPTIONS: tuple[AquiloSensorDescription, ...] = (
         device_class=SensorDeviceClass.TIMESTAMP,
         entity_category=EntityCategory.DIAGNOSTIC,
         value_fn=lambda d: _parse_ts(d.get(ATTR_LST_READ)),
+        attrs_fn=_reading_attrs,
+        # A rejected reading is still worth showing, so this one does not go
+        # unavailable with the tank's readings.
+        always_available=True,
     ),
     AquiloSensorDescription(
         key=ATTR_LST_EMPTY,
@@ -150,8 +177,6 @@ async def async_setup_entry(
             known_tank_ids.add(tank_id)
             new_entities.append(AquiloIdSensor(coordinator, tank_id))
             new_entities.append(AquiloHostSensor(coordinator, tank_id))
-            if isinstance(tank_data.get(ATTR_RAW), dict):
-                new_entities.append(AquiloRawSensor(coordinator, tank_id))
             for description in _descriptions_for_tank(tank_data):
                 new_entities.append(AquiloSensor(coordinator, tank_id, description))
         if new_entities:
@@ -217,51 +242,6 @@ class AquiloHostSensor(AquiloEntity, SensorEntity):
         }
 
 
-class AquiloRawSensor(AquiloEntity, SensorEntity):
-    """Diagnostic entity carrying the measurement behind the computed values.
-
-    The state is the gateway's own raw string, which names the hardware
-    revision, the sensor and the reading in one line. Everything else it sent
-    travels as attributes, including a reading the plausibility gate turned
-    away, so a level that looks wrong can be traced to its source without
-    opening a broker or a log.
-    """
-
-    _attr_name = "Surowy odczyt"
-    _attr_icon = "mdi:code-braces"
-    _attr_entity_category = EntityCategory.DIAGNOSTIC
-
-    def __init__(self, coordinator: AquiloCoordinator, tank_id: str) -> None:
-        """Build the unique id from the entry's identity label."""
-        super().__init__(coordinator, tank_id)
-        self._attr_unique_id = f"{coordinator.client.host}_{tank_id}_raw"
-
-    @property
-    def available(self) -> bool:
-        """Stay available: a rejected reading is still worth showing."""
-        return True
-
-    @property
-    def native_value(self) -> str | None:
-        """The gateway's raw string for the last reading it reported."""
-        raw = self._tank_data.get(ATTR_RAW) or {}
-        value = raw.get("raw") if isinstance(raw, dict) else None
-        # Home Assistant refuses a state longer than 255 characters.
-        return value[:255] if isinstance(value, str) else None
-
-    @property
-    def extra_state_attributes(self) -> dict[str, Any]:
-        """Every raw field, plus the last reading that was turned away."""
-        attrs: dict[str, Any] = {}
-        raw = self._tank_data.get(ATTR_RAW)
-        if isinstance(raw, dict):
-            attrs.update({k: v for k, v in raw.items() if k != "raw"})
-        rejected = self._tank_data.get(ATTR_REJECTED)
-        if isinstance(rejected, dict):
-            attrs["rejected"] = rejected
-        return attrs
-
-
 class AquiloSensor(AquiloEntity, SensorEntity):
     entity_description: AquiloSensorDescription
 
@@ -276,5 +256,16 @@ class AquiloSensor(AquiloEntity, SensorEntity):
         self._attr_unique_id = f"{coordinator.client.host}_{tank_id}_{description.key}"
 
     @property
+    def available(self) -> bool:
+        if self.entity_description.always_available:
+            return True
+        return super().available
+
+    @property
     def native_value(self) -> Any:
         return self.entity_description.value_fn(self._tank_data)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any] | None:
+        attrs_fn = self.entity_description.attrs_fn
+        return attrs_fn(self._tank_data) if attrs_fn else None

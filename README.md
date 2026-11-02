@@ -67,9 +67,8 @@ code, whatever language Home Assistant uses.
 | Poziom do pełna (level to full, cm) | disabled by default |
 | Dni do pustego (days left) | only if the state carries it |
 | Bateria (battery, %) | diagnostic, only if the state carries it (needs a battery curve) |
-| Ostatni odczyt (last read) | diagnostic |
+| Ostatni odczyt (last read) | diagnostic, timestamp; carries the whole raw block as attributes (the gateway's raw string, the echo fields, and a reading that was turned away) |
 | Ostatnie opróżnienie (last emptied) | only if the state carries it |
-| Surowy odczyt (raw reading) | diagnostic, the gateway's raw string; the rest of it as attributes |
 | Jakość echa (echo quality) | diagnostic, only where the sensor reports an echo amplitude |
 | Identyfikator, Adres bramki | diagnostic, identity |
 | **Nieaktualne dane** (stale data) | on when the last read is older than the threshold (default 24 h) |

@@ -5,6 +5,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST, Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import device_registry as dr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.device_registry import DeviceEntry
 
@@ -21,6 +22,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     await coordinator.async_config_entry_first_refresh()
 
     _async_purge_excluded_tanks(hass, entry, client.host)
+    _async_purge_raw_entities(hass, entry, client.host)
 
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
@@ -46,6 +48,24 @@ def _async_purge_excluded_tanks(hass: HomeAssistant, entry: ConfigEntry, host: s
         )
         if device is not None:
             device_registry.async_remove_device(device.id)
+
+
+def _async_purge_raw_entities(hass: HomeAssistant, entry: ConfigEntry, host: str) -> None:
+    """Remove the "Surowy odczyt" entity that 0.4.2 and earlier created.
+
+    Its state was the gateway's raw string, truncated to the 255 characters a
+    state may hold and unreadable in the UI. The whole raw block now travels as
+    attributes of "Ostatni odczyt", so the old entity has no state left to show
+    and would stick around as a permanently-unknown leftover.
+    """
+    entity_registry = er.async_get(hass)
+    for registry_entry in er.async_entries_for_config_entry(
+        entity_registry, entry.entry_id
+    ):
+        if registry_entry.unique_id.startswith(f"{host}_") and (
+            registry_entry.unique_id.endswith("_raw")
+        ):
+            entity_registry.async_remove(registry_entry.entity_id)
 
 
 async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
