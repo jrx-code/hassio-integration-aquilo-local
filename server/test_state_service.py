@@ -24,7 +24,10 @@ from aquilo_state_local import Service  # noqa: E402
 
 TANKS: dict[str, Any] = {
     "sensors": {
-        "aaaa01": {"name": "Rain", "depth_cm": 220, "full_cm": 25},
+        "aaaa01": {
+            "name": "Rain", "depth_cm": 220, "full_cm": 25,
+            "battery_curve": [[3500, 0], [3514, 5], [3531, 10], [3545, 15], [3560, 20], [3576, 25], [3591, 30], [3605, 35], [3619, 40], [3636, 45], [3650, 50], [3665, 55], [3680, 60], [3696, 65], [3709, 70], [3733, 75], [3748, 80], [3761, 85], [3770, 90], [3850, 100]],
+        },
         "bbbb02": {"name": "Sewage", "depth_cm": 189.5, "full_cm": 20},
     }
 }
@@ -151,12 +154,11 @@ def test_a_rejection_leaves_lstread_on_the_last_accepted_reading(svc: Service):
 
 def test_the_carried_fields_survive_a_rejection(svc: Service):
     svc.seed_from_state(
-        {"sensors": [{"id": "aaaa01", "bat": 54, "lstEmpty": "2026-08-31T20:13:54+02:00"}]}
+        {"sensors": [{"id": "aaaa01", "lstEmpty": "2026-08-31T20:13:54+02:00"}]}
     )
     svc.apply_read(read(read1=6050))
     svc.apply_read(read(read1=IMPOSSIBLE))
     entry = _entry(svc)
-    assert entry["bat"] == 54
     assert entry["lstEmpty"] == "2026-08-31T20:13:54+02:00"
     assert entry["name"] == "Rain"
     assert entry["id"] == "aaaa01"
@@ -226,4 +228,45 @@ def test_seeding_never_overwrites_what_a_local_reading_produced(svc: Service):
     svc.seed_from_state({"sensors": [{"id": "aaaa01", "lvl": 999, "bat": 54}]})
     entry = _entry(svc)
     assert entry["lvl"] == 60.5
-    assert entry["bat"] == 54
+    # a seeded battery percentage is never adopted: it is the vendor's, from
+    # before the vendor left the path, and would freeze; 3557 mV is 19 %
+    assert entry["bat"] == 19
+
+
+# --- battery ------------------------------------------------------------------
+
+
+def test_the_battery_percentage_follows_the_curve(svc: Service):
+    svc.apply_read(read(read1=6050, battery="3560"))
+    assert _entry(svc)["bat"] == 20
+    svc.apply_read(read(read1=6050, battery="3709"))
+    assert _entry(svc)["bat"] == 70
+    svc.apply_read(read(read1=6050, battery="3300"))
+    assert _entry(svc)["bat"] == 0
+    svc.apply_read(read(read1=6050, battery="3900"))
+    assert _entry(svc)["bat"] == 100
+
+
+def test_a_sensor_without_a_curve_has_no_percentage_only_millivolts(svc: Service):
+    svc.apply_read(read(sensor="bbbb02", read1=16620, battery="3336"))
+    entry = _entry(svc, "bbbb02")
+    assert entry["batMv"] == 3336
+    assert "bat" not in entry
+
+
+def test_a_stored_percentage_is_reconciled_with_the_config_on_start(tmp_path: Path):
+    path = tmp_path / "store.json"
+    path.write_text(json.dumps({
+        "aaaa01": {"id": "aaaa01", "batMv": 3560, "bat": 54},
+        "bbbb02": {"id": "bbbb02", "batMv": 3336, "bat": 37},
+    }))
+    svc = Service(TANKS, path)
+    assert svc.store["aaaa01"]["bat"] == 20
+    assert "bat" not in svc.store["bbbb02"]
+
+
+def test_the_battery_helper_needs_a_real_curve():
+    from aquilo_level import battery_pct
+
+    with pytest.raises(ValueError):
+        battery_pct(3600, [[3500, 0]])

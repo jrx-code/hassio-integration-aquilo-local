@@ -6,10 +6,101 @@
     "depth mode as manual; for auto take the depth it derived (README, step 1).",
     "full_cm: the 'full' offset, the distance from the sensor at which the tank counts",
     "as full (the panel's max level setting).",
+    "battery_curve (optional): [[mV, percent], ...] sorted by voltage. Without it a sensor publishes batMv and no battery percentage. The curve here is the one recovered for hardware e19; to fit your own, collect (battery mV, battery_pct) pairs from the vendor's history endpoint before you leave the cloud (README, step 1).",
     "Delete this _comment key if your editor complains; the service ignores it."
   ],
   "sensors": {
-    "aaaa01": {"name": "Rainwater", "depth_cm": 220, "full_cm": 25},
-    "bbbb02": {"name": "Sewage", "depth_cm": 190, "full_cm": 20}
+    "aaaa01": {
+      "name": "Rainwater",
+      "depth_cm": 220,
+      "full_cm": 25,
+      "battery_curve": [
+        [
+          3500,
+          0
+        ],
+        [
+          3514,
+          5
+        ],
+        [
+          3531,
+          10
+        ],
+        [
+          3545,
+          15
+        ],
+        [
+          3560,
+          20
+        ],
+        [
+          3576,
+          25
+        ],
+        [
+          3591,
+          30
+        ],
+        [
+          3605,
+          35
+        ],
+        [
+          3619,
+          40
+        ],
+        [
+          3636,
+          45
+        ],
+        [
+          3650,
+          50
+        ],
+        [
+          3665,
+          55
+        ],
+        [
+          3680,
+          60
+        ],
+        [
+          3696,
+          65
+        ],
+        [
+          3709,
+          70
+        ],
+        [
+          3733,
+          75
+        ],
+        [
+          3748,
+          80
+        ],
+        [
+          3761,
+          85
+        ],
+        [
+          3770,
+          90
+        ],
+        [
+          3850,
+          100
+        ]
+      ]
+    },
+    "bbbb02": {
+      "name": "Sewage",
+      "depth_cm": 190,
+      "full_cm": 20
+    }
   }
 }

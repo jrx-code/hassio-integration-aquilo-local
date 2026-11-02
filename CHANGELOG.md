@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.4.1 (2026-11-02)
+
+- State service: the battery percentage is computed from the battery voltage along
+  a per-sensor `battery_curve` in the sensor config, and a sensor without one
+  publishes `batMv` and no `bat`. Before, `bat` was carried forward from the last
+  state the vendor produced and froze there. A stored `bat` is reconciled with
+  the config on start, and a seeded one is no longer adopted.
+- Example config carries an `e19` curve, fitted to 5150 vendor readings (mean
+  error 0.08 percentage points, worst 3). README: how to fit your own.
+
 ## 0.4.0 (2026-11-02)
 
 First release of this repository. It continues the version line of

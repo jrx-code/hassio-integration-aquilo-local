@@ -16,9 +16,11 @@ every point in its recorded history:
 Depth comes from the tank settings: the manual value in manual mode, and in auto
 mode the depth the cloud derived, which it reports in hundredths of a centimetre
 as ``output.maxLevel``. ``full`` is ``settings.maxLevel``, the offset at which
-the tank counts as full. Stdlib only, so the service ships as a pair of files.
+the tank counts as full. Stdlib only, so the service can ship as a pair of files.
 """
 from __future__ import annotations
+
+from bisect import bisect_right
 
 
 def pct_exact(lvl_cm: float, depth_cm: float, full_cm: float) -> float:
@@ -65,3 +67,33 @@ def levels(read1: float, depth_cm: float, full_cm: float) -> dict[str, float]:
         "pct": round(pct_exact(lvl, depth_cm, full_cm)),
         "lvlToFull": round(lvl - full_cm),
     }
+
+
+def battery_pct(millivolts: float, curve: list[list[float]]) -> int:
+    """Turn a battery voltage into a percentage along a per-hardware curve.
+
+    The vendor derives its percentage from the voltage alone, per hardware
+    revision, so a table of knots recovered from its recorded history
+    reproduces it. Between knots the value is interpolated linearly; outside
+    them it clamps to the first and last knot.
+
+    Args:
+        millivolts: Battery voltage in millivolts.
+        curve: ``[[millivolts, percent], ...]`` sorted by ascending voltage.
+
+    Returns:
+        The percentage, rounded, within 0..100.
+
+    Raises:
+        ValueError: If the curve has fewer than two knots.
+    """
+    if len(curve) < 2:
+        raise ValueError("a battery curve needs at least two knots")
+    volts = [k[0] for k in curve]
+    if millivolts <= volts[0]:
+        return round(curve[0][1])
+    if millivolts >= volts[-1]:
+        return round(curve[-1][1])
+    i = bisect_right(volts, millivolts)
+    (v0, p0), (v1, p1) = curve[i - 1], curve[i]
+    return round(p0 + (p1 - p0) * (millivolts - v0) / (v1 - v0))

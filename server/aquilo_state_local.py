@@ -50,13 +50,16 @@ unknown. ``lstRead`` stays on the last accepted reading, which is what the
 stale-data sensors in Home Assistant are measuring; the rejection has its own
 timestamp under ``rejected``.
 
-Fields the service cannot derive from a single reading -- ``bat``, ``lstEmpty``,
+Fields the service cannot derive from a single reading -- ``lstEmpty`` and
 ``daysLeft`` -- are carried forward from the last state it knows, so the Home
 Assistant entities that read them keep their values instead of going
-unavailable. ``bat`` is carried rather than computed on purpose: both sensors run
-on mains, their millivolts sit flat across the whole recorded history, and the
-vendor's own two percentages for them disagree, so a computed figure here would
-be invention. The true millivolts are published alongside as ``batMv``.
+unavailable. ``bat`` is different: it is computed from the battery voltage where
+a sensor's config carries a ``battery_curve`` (knots recovered from the vendor's
+own recorded history for that hardware revision), and a sensor without one has
+no ``bat`` at all. A carried value would freeze at whatever it was when the
+vendor left the path and read as a live measurement, and a curve fitted to a
+voltage range the sensor has never left would be invention. The true millivolts
+are published alongside as ``batMv``.
 
 ``lstRead`` is stamped on arrival, because the raw read carries no timestamp
 of its own, which is also how the cloud produced it.
@@ -77,7 +80,7 @@ from pathlib import Path
 from typing import Any
 
 import paho.mqtt.client as mqtt
-from aquilo_level import levels
+from aquilo_level import battery_pct, levels
 
 logger = logging.getLogger("aquilo-state-local")
 
@@ -143,6 +146,22 @@ class Service:
         self.tanks: dict[str, Any] = config["sensors"]
         self.store_path = store_path
         self.store: dict[str, Any] = load_json(store_path, {})
+        self._reconcile_battery()
+
+    def _reconcile_battery(self) -> None:
+        """Make every stored ``bat`` agree with the config as it is now.
+
+        A figure carried over from the time the vendor computed it must not
+        outlive that: without a curve it is dropped, with one it is recomputed
+        from the stored voltage.
+        """
+        for sensor_id, entry in self.store.items():
+            curve = self.tanks.get(sensor_id, {}).get("battery_curve")
+            if curve and entry.get("batMv") is not None:
+                entry["bat"] = battery_pct(int(entry["batMv"]), curve)
+            else:
+                entry.pop("bat", None)
+
 
     def persist(self) -> None:
         """Write the current per-sensor fields so a restart keeps them."""
@@ -151,7 +170,11 @@ class Service:
         tmp.replace(self.store_path)
 
     @staticmethod
-    def _apply_transmission(entry: dict[str, Any], payload: dict[str, Any]) -> None:
+    def _apply_transmission(
+        entry: dict[str, Any],
+        payload: dict[str, Any],
+        curve: list[list[float]] | None = None,
+    ) -> None:
         """Copy the fields that describe the transmission itself onto an entry.
 
         These say what the radio sent and how well it was heard, which is true
@@ -164,9 +187,14 @@ class Service:
         Args:
             entry: The per-sensor store entry, modified in place.
             payload: The gateway's ``read`` payload.
+            curve: The sensor's battery curve, if its config has one.
         """
         if payload.get("battery") is not None:
             entry["batMv"] = int(payload["battery"])
+            if curve:
+                entry["bat"] = battery_pct(int(payload["battery"]), curve)
+        if not curve:
+            entry.pop("bat", None)
         for extra in ("rssi", "temp", "snr", "amp1"):
             if payload.get(extra) is not None:
                 entry[extra] = payload[extra]
@@ -225,7 +253,7 @@ class Service:
             entry = dict(self.store.get(str(sensor), {}))
             for field in ("lvl", "pct", "lvlToFull"):
                 entry.pop(field, None)
-            self._apply_transmission(entry, payload)
+            self._apply_transmission(entry, payload, tank.get("battery_curve"))
             entry["id"] = str(sensor)
             entry["name"] = tank["name"]
             entry["rejected"] = {
@@ -243,7 +271,7 @@ class Service:
         entry.update(compute(int(read1), tank))
         entry["id"] = str(sensor)
         entry["name"] = tank["name"]
-        self._apply_transmission(entry, payload)
+        self._apply_transmission(entry, payload, tank.get("battery_curve"))
         # A reading that passes clears the record of the last one that did not.
         entry.pop("rejected", None)
         # The raw read carries no timestamp of its own: the cloud stamped it on
@@ -259,7 +287,7 @@ class Service:
     def seed_from_state(self, payload: dict[str, Any]) -> None:
         """Take the carried fields from a state payload we did not produce.
 
-        Used once at start-up so ``bat``, ``lstEmpty`` and ``daysLeft`` are
+        Used once at start-up so ``lstEmpty`` and ``daysLeft`` are
         known before the first local reading arrives.
 
         Args:
@@ -271,7 +299,7 @@ class Service:
             if not sid or sid not in self.tanks:
                 continue
             entry = dict(self.store.get(sid, {}))
-            for field in ("bat", "lstEmpty", "daysLeft", "lstRead", "lvl", "pct",
+            for field in ("lstEmpty", "daysLeft", "lstRead", "lvl", "pct",
                           "lvlToFull", "name"):
                 if field in s and field not in entry:
                     entry[field] = s[field]

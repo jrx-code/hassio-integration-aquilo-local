@@ -66,7 +66,7 @@ code, whatever language Home Assistant uses.
 | Wypełnienie (fill, %) | |
 | Poziom do pełna (level to full, cm) | disabled by default |
 | Dni do pustego (days left) | only if the state carries it |
-| Bateria (battery, %) | diagnostic, only if the state carries it |
+| Bateria (battery, %) | diagnostic, only if the state carries it (needs a battery curve) |
 | Ostatni odczyt (last read) | diagnostic |
 | Ostatnie opróżnienie (last emptied) | only if the state carries it |
 | Surowy odczyt (raw reading) | diagnostic, the gateway's raw string; the rest of it as attributes |
@@ -146,6 +146,19 @@ of a centimetre; the rounded one is accurate to about half a centimetre of depth
 which is under one percentage point of fill. An auto depth also stops being
 re-derived once the cloud is out of the path, so it freezes at this value. If
 you change the tank, set `depth_cm` by hand.
+
+**A battery curve, if you want a percentage.** The vendor's history endpoint
+returns the voltage and its own percentage for every reading. Pull them once and
+fit your own table (the repository's `e19` curve took the lowest voltage that
+reaches each 5 % step and interpolates between):
+
+```bash
+curl -s "https://panel.aquilo.pl/api/v2/sensors/<sensor-id>/history?from=2025-01-01T00:00:00Z" \
+  -H "Authorization: Bearer $TOKEN" | jq '[.rows[] | {mv: (.battery|tonumber), pct: .battery_pct}] | unique'
+```
+
+A curve is only as good as the voltage range the history covers: a sensor that
+has sat at one voltage for months gives you no slope, so leave it out.
 
 **The last state, so the first poll is not empty.** The state service only
 learns a level when a sensor next transmits, which can be hours away (the
@@ -297,11 +310,17 @@ Be clear about this before you cut:
   forwards. Sensors keep the schedule they have now. If you want to change it,
   that will need the command topic, which this repository does not document.
 - **No vendor firmware pushes.** The `version` topic no longer arrives.
-- **Battery percentage, days to full and last-emptied are not computed.** The
-  service carries them forward from the seed if there was one, and the raw
-  battery millivolts are published as `batMv`. On a mains-powered sensor the
-  percentage is meaningless anyway. If you want a days-left estimate, derive it
-  from the level history in Home Assistant.
+- **Days to full and last-emptied are not computed.** The service carries them
+  forward from the seed if there was one. If you want a days-left estimate,
+  derive it from the level history in Home Assistant.
+- **The battery percentage exists only if you give the service a curve.** The
+  vendor derives it from the battery voltage alone, per hardware revision, so a
+  table of `[mV, percent]` knots reproduces it. Without a curve a sensor
+  publishes the raw voltage as `batMv` and no percentage at all, on purpose: a
+  carried-over figure would freeze at its last cloud value and look live. A
+  curve for the `e19` revision is in `server/aquilo-sensors.example.json`
+  (fitted to 5150 vendor readings, 0.08 percentage points mean error, 3 worst);
+  the `g1` revision had too narrow a voltage range in its history to fit one.
 - **Readings arrive on the sensor's own schedule.** Local computation does not
   make a sleeping radio transmit sooner.
 
