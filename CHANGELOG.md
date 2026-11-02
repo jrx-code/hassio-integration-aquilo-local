@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.4.2 (2026-11-02)
+
+- A reading the state service turned away (an echo too weak or too far to be a
+  liquid surface) arrives without any level fields. The integration now shows the
+  last accepted level in that case, as it already did for a zero reading, instead
+  of leaving the level and fill unknown until the next good reading.
+
 ## 0.4.1 (2026-11-02)
 
 - State service: the battery percentage is computed from the battery voltage along

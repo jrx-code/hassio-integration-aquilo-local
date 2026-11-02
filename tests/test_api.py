@@ -163,3 +163,17 @@ def test_gate_without_history_leaves_the_level_unknown():
 def test_gate_passes_a_good_reading_untouched():
     out = apply_plausibility_gate({"t1": _tank()}, {})["t1"]
     assert out["pct"] == 17 and "rejected" not in out
+
+
+def test_gate_restores_the_last_good_level_when_the_service_dropped_it():
+    last_good = {"t1": {"lvl": 60.5, "pct": 82, "lvlToFull": 36, "lstRead": "x"}}
+    tank = {"id": "t1", "bat": 20, "rejected": {"read1": 34330, "limit": 225.0}}
+    out = apply_plausibility_gate({"t1": tank}, last_good)["t1"]
+    assert out["pct"] == 82 and out["lvl"] == 60.5
+    assert out["rejected"]["read1"] == 34330
+
+
+def test_gate_leaves_the_level_unknown_when_the_service_dropped_it_without_history():
+    tank = {"id": "t1", "rejected": {"read1": 34330}}
+    out = apply_plausibility_gate({"t1": tank}, {})["t1"]
+    assert "pct" not in out and "lvl" not in out

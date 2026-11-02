@@ -63,7 +63,11 @@ def apply_plausibility_gate(
         ``tanks``, for chaining.
     """
     for sensor_id, tank in tanks.items():
-        if is_implausible(tank):
+        if isinstance(tank.get("rejected"), dict) and "lvl" not in tank:
+            # The state service already turned the reading away and dropped
+            # the level fields; show the last accepted ones instead of nothing.
+            tank.update(last_good.get(sensor_id, {}))
+        elif is_implausible(tank):
             tank["rejected"] = {k: tank.get(k) for k in LEVEL_FIELDS if k in tank}
             for key in LEVEL_FIELDS:
                 tank.pop(key, None)
