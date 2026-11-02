@@ -1,9 +1,9 @@
 # Changelog
 
-## 0.1.0 (2026-11-02)
+## 0.4.0 (2026-11-02)
 
-First release. The local-only sibling of `hassio-integration-aquilo` 0.3.2, from
-which it takes the gateway client, the entities and the plausibility gate.
+First release of this repository. It continues the version line of
+`hassio-integration-aquilo` (0.3.2) as its local-only sibling and takes the gateway client, the entities and the plausibility gate.
 
 - Domain `aquilo_local`, one config-flow step (the gateway address). No vendor
   account, no cloud client.
