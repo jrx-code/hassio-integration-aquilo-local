@@ -44,13 +44,18 @@ Tested on a gateway with firmware `1.7.1.5_en` and two sensor types (`e19` and
 
 ## Part 1: the Home Assistant integration
 
-HACS, custom repository:
+The integration is in the HACS default store:
 
-1. HACS, three-dot menu, **Custom repositories**
-2. URL `https://github.com/jrx-code/hassio-integration-aquilo-local`, type **Integration**
-3. Install **Aquilo Local**, restart Home Assistant
-4. **Settings, Devices & services, Add integration, Aquilo Local**, and enter the
+1. HACS (or the Marketplace on Home Assistant 2026.11+), search for **Aquilo Local**,
+   download it, restart Home Assistant
+2. **Settings, Devices & services, Add integration, Aquilo Local**, and enter the
    gateway's address (the host or IP, no scheme)
+
+[![Open your Home Assistant instance and open this repository in HACS.](https://my.home-assistant.io/badges/hacs_repository.svg)](https://my.home-assistant.io/redirect/hacs_repository/?owner=jrx-code&repository=hassio-integration-aquilo-local&category=integration)
+
+If the search finds nothing yet, add it by hand: HACS, three-dot menu, **Custom
+repositories**, URL `https://github.com/jrx-code/hassio-integration-aquilo-local`,
+type **Integration**.
 
 Manual: copy `custom_components/aquilo_local` into your `config/custom_components/`.
 
