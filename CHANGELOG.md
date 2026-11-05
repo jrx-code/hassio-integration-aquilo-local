@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.4.4 (2026-11-05)
+
+- Manifest declares `categories` (Water), so the Home Assistant 2026.11 Marketplace lists the integration under that category. No functional change.
+
 ## 0.4.3 (2026-11-02)
 
 - The raw measurement behind a reading now travels as attributes of **Ostatni
